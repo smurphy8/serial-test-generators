@@ -27,7 +27,7 @@ import           Data.Aeson (ToJSON
 
 import qualified Data.ByteString.Lazy as BLazy
 import           GHC.Generics
-import           System.IO (withFile, IOMode(..),openFile,hIsEOF)
+import           System.IO (withFile, IOMode(..),hIsEOF)
 --------------------------------------------------
 
 data TestError = NoFileFound |  -- NoFileFound could simply mean it is the first time the test was ran
