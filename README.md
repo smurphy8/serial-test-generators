@@ -19,7 +19,7 @@ so I have to write all these pieces down... but what I would really like is
 
 
 ``` haskell
-runAesonSerializeTest 'someTestAeson "outputfile.txt"
+runAesonSerializeTest someTestAeson "outputfile.txt"
 
 ```
 
