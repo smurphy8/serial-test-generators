@@ -13,13 +13,14 @@ Library
   Default-Language:     Haskell2010
   HS-Source-Dirs:       src
   GHC-Options:          -Wall
-  Exposed-Modules:      Test.Serial.Generator
-  Other-Modules:        Test.Serial.Generator.Internal
+  Exposed-Modules:      Test.Serial
+  Other-Modules:        
   Build-Depends:        base >= 4 && < 5
-                      , template-haskell
                       , aeson
                       , binary
                       , cereal
+                      , bytestring >= 0.9.0
+                        
 
 Test-Suite spec
   Type:                 exitcode-stdio-1.0
@@ -30,10 +31,10 @@ Test-Suite spec
   Main-Is:              Spec.hs
   Build-Depends:        base
                       , hspec
-                      , template-haskell
                       , aeson
                       , binary
                       , cereal
+                      , bytestring
 
 
 Source-Repository head
