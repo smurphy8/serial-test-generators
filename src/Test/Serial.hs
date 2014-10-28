@@ -16,7 +16,7 @@ Portability :   non-portable (System.Posix)
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Test.Serial () where
+module Test.Serial (runAesonSerializationTest, TestError (..) ) where
 
 import           Data.Aeson (ToJSON
                            , FromJSON
@@ -32,7 +32,10 @@ import           System.IO (withFile, IOMode(..),openFile,hIsEOF)
 
 data TestError = NoFileFound |  -- NoFileFound could simply mean it is the first time the test was ran
                  AesonError String
-                 
+      deriving (Generic,Read,Show,Eq,Ord)
+
+instance ToJSON TestError where
+
 newtype MockInference a = MockInference a
    deriving (Generic)
 
@@ -42,8 +45,8 @@ instance ToJSON a => ToJSON (MockInference a) where
 makeMockInference :: (ToJSON a, FromJSON a) => a -> MockInference a
 makeMockInference testVal = MockInference testVal
 
-runAesonSerializtionTest :: (ToJSON a, FromJSON a) => a -> FilePath -> IO (Either TestError a)
-runAesonSerializtionTest dataUnderTest file = withFile file ReadWriteMode createAesonSerializeTest
+runAesonSerializationTest :: (ToJSON a, FromJSON a) => a -> FilePath -> IO (Either TestError a)
+runAesonSerializationTest dataUnderTest file = withFile file ReadWriteMode createAesonSerializeTest
  where
     createAesonSerializeTest h = do
       aNewFile <- hIsEOF h
