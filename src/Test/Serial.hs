@@ -1,5 +1,3 @@
-
-
 {- |
 Module      :  Test.Serial
 Description :  Test.Serial run serialization tests against static files
@@ -16,36 +14,41 @@ Portability :   non-portable (System.Posix)
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Test.Serial (runAesonSerializationTest, TestError (..) ) where
+module Test.Serial (runAesonSerializationTest
+                   , runBinarySerializationTest
+                   , TestError (..) ) where
 
-import           Data.Aeson (ToJSON
-                           , FromJSON
-                           , toJSON
-                           , encode
-                           , eitherDecode)
+import   qualified Data.Aeson as A
 
-
+import   qualified Data.Binary as B
 import qualified Data.ByteString.Lazy as BLazy
 import           GHC.Generics
 import           System.IO (withFile, IOMode(..),hIsEOF)
 --------------------------------------------------
 
 data TestError = NoFileFound |  -- NoFileFound could simply mean it is the first time the test was ran
-                 AesonError String
+                 AesonError  String |
+                 BinaryError String
       deriving (Generic,Read,Show,Eq,Ord)
 
-instance ToJSON TestError where
+instance A.ToJSON TestError where
 
-newtype MockInference a = MockInference a
+
+
+-- | AESON SERIALIZER  
+-- | 'MockAesonInference' just to force two inferred types to be the same  
+newtype MockAesonInference a = MockAesonInference a
    deriving (Generic)
 
-instance ToJSON a => ToJSON (MockInference a) where             
+instance A.ToJSON a => A.ToJSON (MockAesonInference a) where             
 
 
-makeMockInference :: (ToJSON a, FromJSON a) => a -> MockInference a
-makeMockInference testVal = MockInference testVal
+makeMockAesonInference :: (A.ToJSON a, A.FromJSON a ) => a -> MockAesonInference a
+makeMockAesonInference testVal = MockAesonInference testVal
 
-runAesonSerializationTest :: (ToJSON a, FromJSON a) => a -> FilePath -> IO (Either TestError a)
+
+
+runAesonSerializationTest :: (A.ToJSON a, A.FromJSON a) => a -> FilePath -> IO (Either TestError a)
 runAesonSerializationTest dataUnderTest file = withFile file ReadWriteMode createAesonSerializeTest
  where
     createAesonSerializeTest h = do
@@ -56,16 +59,53 @@ runAesonSerializationTest dataUnderTest file = withFile file ReadWriteMode creat
              
     createAesonSerializeTest' h = do
       aesonByteString <- BLazy.hGetContents h
-      case eitherDecode aesonByteString of
+      case A.eitherDecode aesonByteString of
         (Left s) -> return . Left .  AesonError $ s
         (Right a) 
-          |(toJSON . makeMockInference $ a) == (toJSON.makeMockInference $ dataUnderTest)
+          |(A.toJSON . makeMockAesonInference $ a) == (A.toJSON.makeMockAesonInference $ dataUnderTest)
            -> return . Right $ a
           |otherwise -> return . Left . AesonError $ "Serializations do not match"
   
     writeOutputAndExit h = do
       putStrLn "file not found, writing given serialization to disk, rerun tests"
-      BLazy.hPut h $ encode dataUnderTest
+      BLazy.hPut h $ A.encode dataUnderTest
       return . Left $ NoFileFound
 
+
+
+
+
+-- | 'MockBinaryInference' just to force two inferred types to be the same  
+newtype MockBinaryInference a = MockBinaryInference a
+   deriving (Generic)
+
+instance B.Binary a => B.Binary (MockBinaryInference a) where             
+
+
+makeMockBinaryInference :: (B.Binary a) => a -> MockBinaryInference a
+makeMockBinaryInference testVal = MockBinaryInference testVal
+
+runBinarySerializationTest :: (B.Binary a) => a -> FilePath -> IO (Either TestError a)
+runBinarySerializationTest dataUnderTest file = withFile file ReadWriteMode createBinarySerializeTest
+ where
+    createBinarySerializeTest h = do
+      aNewFile <- hIsEOF h
+      if aNewFile
+        then writeOutputAndExit h
+        else createBinarySerializeTest' h
+             
+    createBinarySerializeTest' h = do
+      binaryByteString <- BLazy.hGetContents h
+      case B.decodeOrFail binaryByteString of
+        -- (Left s) -> return . Left .  BinaryError $ " whee"
+        (Right (_,_,a) )
+          |(B.encode . makeMockBinaryInference $ a) == (B.encode.makeMockBinaryInference $ dataUnderTest)
+           -> return . Right $ a
+          |otherwise -> return . Left . BinaryError $ "Serializations do not match"
   
+    writeOutputAndExit h = do
+      putStrLn "file not found, writing given serialization to disk, rerun tests"
+      BLazy.hPut h $ B.encode dataUnderTest
+      return . Left $ NoFileFound
+
+
