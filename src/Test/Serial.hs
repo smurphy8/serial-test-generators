@@ -6,13 +6,12 @@ License     :  MIT License
 Maintainer  :  Scott Murphy
 Stability   :  unstable 
 Portability :   non-portable (System.Posix)
-
-
 -}
 
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Test.Serial (runAesonSerializationTest
                    , runBinarySerializationTest
@@ -23,6 +22,7 @@ import   qualified Data.Aeson as A
 import   qualified Data.Binary as B
 import qualified Data.ByteString.Lazy as BLazy
 import           GHC.Generics
+import Data.String.Here.Interpolated (i)
 import           System.IO (withFile, IOMode(..),hIsEOF)
 --------------------------------------------------
 
@@ -46,8 +46,6 @@ instance A.ToJSON a => A.ToJSON (MockAesonInference a) where
 makeMockAesonInference :: (A.ToJSON a, A.FromJSON a ) => a -> MockAesonInference a
 makeMockAesonInference testVal = MockAesonInference testVal
 
-
-
 runAesonSerializationTest :: (A.ToJSON a, A.FromJSON a) => a -> FilePath -> IO (Either TestError a)
 runAesonSerializationTest dataUnderTest file = withFile file ReadWriteMode createAesonSerializeTest
  where
@@ -64,15 +62,19 @@ runAesonSerializationTest dataUnderTest file = withFile file ReadWriteMode creat
         (Right a) 
           |(A.toJSON . makeMockAesonInference $ a) == (A.toJSON.makeMockAesonInference $ dataUnderTest)
            -> return . Right $ a
-          |otherwise -> return . Left . AesonError $ "Serializations do not match"
-  
+          |otherwise -> return . Left . AesonError . explainError  (A.toJSON . makeMockAesonInference $ a) $ (A.toJSON.makeMockAesonInference $ dataUnderTest)
+
     writeOutputAndExit h = do
       putStrLn "file not found, writing given serialization to disk, rerun tests"
       BLazy.hPut h $ A.encode dataUnderTest
       return . Left $ NoFileFound
 
 
-
+explainError old new = [i|
+  JSON doesn't match: 
+   old:  ${old}
+   new:  ${new}
+  |]
 
 
 -- | 'MockBinaryInference' just to force two inferred types to be the same  
